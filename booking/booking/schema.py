@@ -3,6 +3,7 @@ import graphql_jwt
 
 import hotels.schema
 import users.schema
+import auth.schema
 
 class Query(
     hotels.schema.Query,
@@ -14,10 +15,9 @@ class Query(
 class Mutation(
     hotels.schema.Mutation,
     users.schema.Mutation,
+    auth.schema.Mutation,
     graphene.ObjectType
 ):
-    token_auth = graphql_jwt.ObtainJSONWebToken.Field()
-    verify_token = graphql_jwt.Verify.Field()
-    refresh_token = graphql_jwt.Refresh.Field()
+    pass
 
 schema = graphene.Schema(query=Query, mutation=Mutation)

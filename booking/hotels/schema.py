@@ -1,50 +1,33 @@
 import graphene
 from graphene_django import DjangoObjectType
 from graphql import GraphQLError
-from django.db.models import Q
+from graphene_django.filter import DjangoFilterConnectionField
+
 from .models import Hotel, Comment
 from users.schema import UserType
+
 
 class HotelType(DjangoObjectType):
     class Meta:
         model = Hotel
+        filter_fields = ['name', 'posted_by']
+        interfaces = (graphene.relay.Node, )
 
 class CommentType(DjangoObjectType):
     class Meta:
         model = Comment
+        filter_fields = ['posted_by', 'hotel']
+        interfaces = (graphene.relay.Node, )
 
 class Query(graphene.ObjectType):
-    hotels = graphene.List(
-        HotelType,
-        id=graphene.Int(),
-        first=graphene.Int(),
-        skip=graphene.Int(),
-    )
-    comments = graphene.List(CommentType)
+    hotel = graphene.relay.Node.Field(HotelType)
+    hotels = DjangoFilterConnectionField(HotelType)
 
-    def resolve_hotels(
-        self,
-        info,
-        id=None,
-        first=None,
-        skip=None,
-        **kwargs
-    ):
-        qs = Hotel.objects.all()
+    comment = graphene.relay.Node.Field(CommentType)
+    comments = DjangoFilterConnectionField(CommentType)
 
-        if id:
-            return qs.filter(id=id)
-
-        if skip:
-            qs = qs[skip:]
-
-        if first:
-            qs = qs[:first]\
-
-        return qs
-
-    def resolve_comments(self, info, **kwargs):
-        return Comment.objects.all()
+class HotelInput(graphene.InputObjectType):
+    name = graphene.String(required=True)
 
 class CreateHotel(graphene.Mutation):
     id = graphene.Int()
@@ -52,19 +35,18 @@ class CreateHotel(graphene.Mutation):
     posted_by = graphene.Field(UserType)
 
     class Arguments:
-        name = graphene.String()
+        input = graphene.Argument(HotelInput, required=True)
 
-    def mutate(self, info, name):
+    def mutate(self, info, input):
         user = info.context.user or None
 
-        hotel = Hotel(name=name, posted_by=user)
+        if user.is_anonymous:
+            raise Exception('You must be logged to add a hotel!')
+
+        hotel = Hotel(name=input.get('name'), posted_by=user)
         hotel.save()
 
-        return CreateHotel(
-            id=hotel.id,
-            name=hotel.name,
-            posted_by=hotel.posted_by
-        )
+        return CreateHotel(id=hotel.id, name=hotel.name, posted_by=hotel.posted_by)
 
 class CreateComment(graphene.Mutation):
     id = graphene.Int()
@@ -81,18 +63,14 @@ class CreateComment(graphene.Mutation):
         hotel = None
 
         if user.is_anonymous:
-            raise Exception('You must be logged to vote!')
+            raise Exception('You must be logged in to leave a comment!')
 
         try:
             hotel = Hotel.objects.get(pk=hotel_id)
         except:
             raise Exception("Invalid hotel")
 
-        comment = Comment(
-            content=content,
-            hotel=hotel,
-            posted_by=user
-        )
+        comment = Comment(content=content, hotel=hotel, posted_by=user)
         comment.save()
 
         return CreateComment(
