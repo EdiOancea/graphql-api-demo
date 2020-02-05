@@ -6,7 +6,7 @@ from .models import User
 class UserType(DjangoObjectType):
     class Meta:
         model = User
-        filter_fields = [email']
+        filter_fields = ['email']
         interfaces = (graphene.relay.Node, )
 
 
@@ -37,10 +37,12 @@ class CreateUser(graphene.Mutation):
         input = graphene.Argument(UserInput, required=True)
 
     def mutate(self, info, input):
+        print(input)
         user = User.objects.create_user(
             email=input.get('email'),
             password=input.get('password'),
-            **input
+            first_name = input.get('first_name'),
+            last_name = input.get('last_name')
         )
 
         return CreateUser(user=user)
