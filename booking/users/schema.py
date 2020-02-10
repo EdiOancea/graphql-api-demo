@@ -1,7 +1,11 @@
 import graphene
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
+from graphql_relay import from_global_id
+
 from .models import User
+from hotels.models import Hotel
+
 
 class UserType(DjangoObjectType):
     class Meta:
